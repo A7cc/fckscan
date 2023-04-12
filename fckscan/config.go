@@ -49,7 +49,16 @@ var (
 	ORANGE  string = "\033[0;38;5;214m"
 	END     string = "\033[0m"
 )
-var version string = "1.0.0"
+
+// 基本信息
+var (
+	// 版本
+	version string = "1.0.0"
+	// dns存放列表
+	dnsServers []string
+	// 存放IP列表
+	hosts []string
+)
 
 // 设置请求时的信息
 var Client *http.Client
@@ -1277,8 +1286,6 @@ var ruleDatas = []ruleData{
 	{`OrientDB`, `body`, `(Redirecting to OrientDB)`},
 	{`Osclass`, `body`, `(generator" content="Osclass)`},
 	{`Osclass`, `header`, `(osclass)`},
-	{`P3p`, `header`, `P3p`},
-	{`P3p_enabled`, `header`, `P3p: CP`},
 	{`PCLinuxOS`, `header`, `PCLinuxOS`},
 	{`PG_API_Server`, `header`, `(PG API Server|PGAPIServ)`},
 	{`PHP`, `header`, `X-Powered-By: PHP`},

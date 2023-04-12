@@ -1,12 +1,16 @@
 package fckscan
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
-	"net/url"
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/miekg/dns"
 )
 
 // 获取title
@@ -80,6 +84,21 @@ func RemoveDuplicate[T any](old []T) (result []T) {
 	return
 }
 
+// 读取json文件
+func Readjsonfile(filename string) ([]ruleData, error) {
+	// 设置json文件
+	var jsonlist []ruleData
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(data, &jsonlist)
+	if err != nil {
+		return nil, err
+	}
+	return jsonlist, nil
+}
+
 // 写入文件
 func WriteFile(log string, filename string) {
 	var text = []byte(log + "\n")
@@ -97,58 +116,37 @@ func WriteFile(log string, filename string) {
 
 // 本地域名反查
 func local_domain(domainname string) (addrs []string, err error) {
-	// 验证该域名是否为有效域名
-	domain, err := url.Parse(domainname)
-	if err != nil {
-		return nil, err
-	}
 	// 反查域名
-	addrs, err = net.LookupHost(domain.Hostname())
+	addrs, err = net.LookupHost(domainname)
 	if err != nil {
 		return nil, err
 	}
 	return addrs, nil
 }
 
-// // 使用网络的网站测试，这个不稳定
-// func net_domain(domainname string) (addrs []string, err error) {
-// 	netrequ, err := http.NewRequest(http.MethodPost, "https://webscan.cc", strings.NewReader("domain="+domainname))
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	netrequ.Header.Set("User-Agent", user_Agents[0])
-// 	netrequ.Header.Set("Accept", "*/*")
-// 	netrequ.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
-// 	netrequ.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-// 	// 发请求
-// 	resp, err := Client.Do(netrequ)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer resp.Body.Close()
-// 	// 显示响应信息
-// 	body, err3 := ioutil.ReadAll(resp.Body)
-// 	if err3 != nil {
-// 		return nil, err
-// 	}
-// 	fmt.Println(string(body))
-// 	renet := regexp.MustCompile(`(?ims)"><h1>(.*?)</h1>`)
-// 	// 使用正则匹配
-// 	nettmp := renet.FindSubmatch([]byte(body))
-// 	fmt.Println(nettmp)
-// 	// if len(titletmp) > 1 {
-// 	// 	title = string(titletmp[1])
-// 	// 	title = strings.TrimSpace(title)
-// 	// 	title = strings.Replace(title, "\n", "", -1)
-// 	// 	title = strings.Replace(title, "\r", "", -1)
-// 	// 	title = strings.Replace(title, "&nbsp;", " ", -1)
-// 	// 	if len(title) > 100 {
-// 	// 		title = title[:100]
-// 	// 	}
-// 	// }
-// 	// if title == "" {
-// 	// 	title = "None"
-// 	// }
-// 	return
-
-// }
+// 反查域名
+func reverse_check_domain(domainname, dnsserver string) (addrs []string, err error) {
+	// 创建一个Msg
+	var msg dns.Msg
+	// 调用fqdn将域转换为可以与DNS服务交换的FQDN
+	fqdn := dns.Fqdn(domainname)
+	// 设置查询A记录
+	msg.SetQuestion(fqdn, dns.TypeA)
+	// 将消息发送到DNS服务器
+	in, err := dns.Exchange(&msg, dnsserver+":53")
+	if err != nil {
+		return nil, err
+	}
+	// 如果长度小于1 则说明没有记录
+	if len(in.Answer) < 1 {
+		return nil, errors.New("no records")
+	}
+	// 循环输出
+	for _, answer := range in.Answer {
+		// 通过断言判断A记录获取A记录
+		if res, ok := answer.(*dns.A); ok {
+			addrs = append(addrs, res.A.String())
+		}
+	}
+	return
+}

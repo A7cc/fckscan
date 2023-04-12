@@ -13,6 +13,9 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode/utf8"
+
+	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
 // 初始化http客户端连接
@@ -69,7 +72,8 @@ func reqUrl(Url, ua string) (req resDataType, code int, err error) {
 	// TODO:=============还有其他请求头
 	requ.Header.Set("User-Agent", ua)
 	requ.Header.Set("Accept", "*/*")
-	requ.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
+	requ.Header.Set("Accept-Language", "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2")
+	// requ.Header.Set("Accept-Encoding", "gzip, deflate")
 	if Cookie != "" {
 		requ.Header.Set("Cookie", Cookie)
 	}
@@ -85,6 +89,11 @@ func reqUrl(Url, ua string) (req resDataType, code int, err error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return
+	}
+	// 判断body是否是完全由有效的UTF-8编码符文组成
+	if !utf8.Valid(body) {
+		// 如果不是那就改为GBK
+		body, _ = simplifiedchinese.GBK.NewDecoder().Bytes(body)
 	}
 	req = resDataType{
 		Url:    Url,
@@ -109,7 +118,7 @@ func ProcessIPs(host string) (hostlist []string) {
 }
 
 // 处理文件
-func ProcessIPFile(file string) (hosts string, err error) {
+func ProcessFile(file string) (tmps string, err error) {
 	// 打开文件
 	f, err := os.Open(file)
 	if err != nil {
@@ -124,12 +133,17 @@ func ProcessIPFile(file string) (hosts string, err error) {
 		if err != nil && err != io.EOF {
 			return "", err
 		}
+
+		line := strings.TrimSpace(lineS)
+		// 判断读取内容是否为空
+		if line != "" {
+			tmps = tmps + "," + line
+		}
+
 		// 出现io.EOF就跳出循环
 		if err == io.EOF {
 			break
 		}
-		line := strings.TrimSpace(lineS)
-		hosts = hosts + "," + line
 	}
-	return
+	return tmps, nil
 }

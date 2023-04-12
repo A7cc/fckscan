@@ -5,46 +5,59 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"net/url"
 	"strings"
 	"sync"
 )
 
 // 运行
-func getUrlData(url string) (urldata urlDataType, err error) {
+func getUrlData(host string) (urldata urlDataType, err error) {
 	// 判断是否有添加http
-	if strings.Index(url, "http") != 0 {
-		url = "http://" + url
+	if strings.Index(host, "http") != 0 {
+		host = "http://" + host
 	}
-	// 进行本地域名反查
-	addrs, err := local_domain(url)
+	// todo:需要扩展，可以加在一起
+	// //////////////////////////////////////////////////////////////
+	// 验证该域名是否为有效域名
+	domain, err := url.Parse(host)
 	if err != nil {
-		err = errors.New(url + " no such host")
 		return
 	}
+	// 存放域名
+	var addrs []string
+	if dnsServers != nil {
+		// 进行域名反查，随机选择
+		addrs, err = reverse_check_domain(domain.Hostname(), dnsServers[rand.Intn(len(dnsServers))])
+		if err != nil {
+			fmt.Println(ERR, err)
+			// 进行本地域名反查
+			addrs, err = local_domain(domain.Hostname())
+		}
+	} else {
+		// 进行本地域名反查
+		addrs, err = local_domain(domain.Hostname())
+	}
+	// 处理错误
+	if err != nil {
+		err = errors.New(host + " no such host")
+		return
+	}
+
+	// //////////////////////////////////////////////////////////////////////////
 	// 赋值
-	urldata.Url = url
-	urldata.Subdomain = append(urldata.Subdomain, addrs...)
-	// 判断是否只进行本地域名反查
-	if LocalDomain {
+	urldata.Url = host
+	urldata.Subdomain = RemoveDuplicate(addrs)
+	// 判断是否只进行域名反查
+	if RcDomain {
 		urldata.Code = 0
 		return
 	}
-	// //////////////////////////////////////////////////////////////
-	// // 进行网络webscan.cc域名反查
-	// addrs, err = net_domain(urldata.Url)
-	// if err != nil {
-	// 	err = errors.New(url + " no such host")
-	// 	return
-	// }
-	// urldata.Subdomain = append(urldata.Subdomain, addrs...)
-	// //////////////////////////////////////////////////////////////////////////
 	// 请求运行
-	rdt, code, err := reqUrl(url, user_Agents[rand.Intn(len(user_Agents))])
+	rdt, code, err := reqUrl(host, user_Agents[rand.Intn(len(user_Agents))])
 	// 赋值
 	urldata.Code = code
 	urldata.Title = getTitle(rdt)
 	urldata.Finger = getFinger(rdt)
-	urldata.Subdomain = addrs
 	return
 }
 
@@ -54,23 +67,13 @@ func Run() {
 	var wg sync.WaitGroup
 	// 处理flag
 	Flag()
-	// 判断是否输入IP
-	if Host == "" && HostFile == "" {
-		fmt.Println("[\033[31;1m-\033[0m] 没有检测的URL！")
+	// 处理数据
+	err := ParseFlag()
+	if err != nil {
+		fmt.Println(ERR, err)
 		flag.Usage()
 		return
 	}
-	// 读取文件
-	if HostFile != "" {
-		hf, err := ProcessIPFile(HostFile)
-		if err == nil {
-			Host = Host + hf
-		} else {
-			fmt.Printf("%s 文件读取识别，使用Host参数！\n", ERR)
-		}
-	}
-	// 解析主机
-	hosts := RemoveDuplicate(ProcessIPs(Host))
 	// 创建通道
 	host := make(chan string)
 	// 开始检测

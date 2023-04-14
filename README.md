@@ -5,22 +5,11 @@
 # 贰 原理
 
 web指纹识别就是通过web指纹库进行对比
-域名解析是通过本地域名解析+自定义域名解析
+域名解析是通过本地域名解析+dns域名解析
 
 # 叁 使用
 
-```bash
--u  设置host
--ck 设置cookie
--proxy  设置代理
--hf 读取读取host文件
--outfile    保存日志文件
--ld 是否只进行本地域名反查
--t 设置线程
--timeout 设置请求超时
-```
-
-- 帮助
+- 帮助`-h`
 
 ![image-20230410180949795](image/image-20230410180949795.png)
 
@@ -35,3 +24,20 @@ web指纹识别就是通过web指纹库进行对比
 - 只进行域名解析
 
 ![image-20230410183017422](image/image-20230410183017422.png)
+
+- 添加自定义指纹
+
+> 注意是json格式
+> - name是指纹名字
+> - type是识别的指纹类型,类型为body,headers
+> - rule是规则
+
+```json
+[{"name":"cmsname", "type":"body", "rule":"demo1"},{"name":"cms2", "type":"headers", "rule":"demo2"}]
+```
+
+![image-20230412173154684](image/image-20230412173154684.png)
+
+- 添加自定义dns
+
+![image-20230412173314368](image/image-20230412173314368.png)

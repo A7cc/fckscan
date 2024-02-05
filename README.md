@@ -118,5 +118,5 @@ print(mmh3.hash(codecs.encode(r.content,"base64")))
 
 # 伍 更新
 
-- v1.0.0：最初的版本
-- v2.0.0：修改了一些结构和修复了bug
+- v1.0.1：最初的版本
+- v2.0.1：修改了一些结构和修复了bug

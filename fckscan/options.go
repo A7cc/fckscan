@@ -21,7 +21,7 @@ var (
 	// 获取文件
 	HostFile string
 	// 域名反查
-	RcDomain bool
+	RcDomain int
 	// 存储结果日志
 	outfile string
 	// 用户自定义的dns文件
@@ -30,24 +30,26 @@ var (
 	DnsServer string
 	// 读取指纹文件
 	RuleFile string
+	// 日志等级
+	DebugLevel int
 )
 
 // 处理flag
 func Flag() {
 	tag()
-	flag.StringVar(&Host, "u", "", "设置host")
-	flag.StringVar(&HostFile, "hf", "", "读取host文件")
+	flag.StringVar(&Host, "t", "", "设置host")
+	flag.StringVar(&HostFile, "tf", "", "读取host文件")
 	flag.StringVar(&Cookie, "ck", "", "设置cookie")
-	flag.StringVar(&Proxy, "proxy", "", "设置代理")
+	flag.StringVar(&Proxy, "proxy", "", "设置代理，如：socks5://127.0.0.1:1080、http://127.0.0.1:8080")
 	flag.StringVar(&RuleFile, "rf", "", "设置指纹文件")
 	flag.StringVar(&DnsServerFile, "dsf", "", "读取dns文件")
-	flag.StringVar(&DnsServer, "ds", "8.8.8.8,114.114.114.114", "自定义dns")
+	flag.StringVar(&DnsServer, "ds", "223.5.5.5,8.8.8.8,180.76.76.76,119.29.29.29,182.254.116.116", "自定义dns")
 	flag.StringVar(&outfile, "outfile", "fckscanlog.txt", "保存日志文件")
-	flag.BoolVar(&RcDomain, "rcd", false, "是否只进行域名反查")
-	flag.IntVar(&ThreadNum, "t", 100, "设置线程")
+	flag.IntVar(&RcDomain, "rcd", 0, "域名反查功能,1(只进行域名反查)/2(不显示域名反查结果)/其他数字(全部显示)")
+	flag.IntVar(&DebugLevel, "debug", 0, "debug等级日志,0(Basic)/1(Error)/3(Warn)/4(Debug)")
+	flag.IntVar(&ThreadNum, "n", 100, "设置线程")
 	flag.IntVar(&Timeout, "timeout", 5, "设置请求超时")
 	flag.Parse()
-
 }
 
 // 处理数据
@@ -55,32 +57,48 @@ func ParseFlag() error {
 	// 处理主机
 	// 判断是否输入IP
 	if Host == "" && HostFile == "" {
-		return errors.New("没有检测的URL！")
+		return errors.New("没有检测的主机！")
 	}
 	// 读取文件
 	if HostFile != "" {
-		hf, err := ProcessFile(HostFile)
-		if err == nil {
+		hf, err := processFile(HostFile)
+		// 为了防止前面有多个逗号
+		if err == nil && Host != "" {
 			Host = Host + "," + hf
+		} else if err == nil {
+			Host = hf
+		} else if Host != "" {
+			InfoLog("自定义hosts文件读取识别，即将使用Host参数的主机！")
 		} else {
-			fmt.Printf("%s 自定义hosts文件读取识别，使用Host参数！\n", ERR)
+			return errors.New("没有可用的URL或者URL文件！")
 		}
 	}
 	// 解析主机
-	hosts = ProcessIPs(Host)
-
+	hosts = processIPs(Host)
+	DebugLog("检测的主机为：%v", hosts)
+	if len(hosts) == 0 {
+		return errors.New("输入的主机不合规！")
+	}
 	// 处理dns
 	// 读取文件
 	if DnsServerFile != "" {
-		ds, err := ProcessFile(DnsServerFile)
-		if err == nil {
-			DnsServer = DnsServer + ds
+		ds, err := processFile(DnsServerFile)
+		if err == nil && DnsServer != "" {
+			DnsServer = DnsServer + "," + ds
+		} else if err == nil {
+			DnsServer = ds
 		} else {
-			fmt.Printf("%s 自定义dns文件读取识别，使用ds参数！\n", ERR)
+			InfoLog("自定义dns文件读取识别，即将默认dns！")
 		}
 	}
 	// 解析dns主机
-	dnsServers = ProcessIPs(DnsServer)
+	dnsServerstmp := processIPs(DnsServer)
+	for _, i := range dnsServerstmp {
+		if ok := ExecCommandPing(i); ok {
+			dnsServers = append(dnsServers, i)
+		}
+	}
+	DebugLog("存活的DNS为：%v", dnsServers)
 
 	// 处理指纹文件
 	if RuleFile != "" {
@@ -88,7 +106,7 @@ func ParseFlag() error {
 		if err == nil {
 			ruleDatas = append(rd, ruleDatas...)
 		} else {
-			fmt.Printf("%s 自定义指纹文件读取识别，即将使用默认规则！\n", ERR)
+			InfoLog("自定义指纹文件读取识别错误，即将使用默认规则！")
 		}
 	}
 	return nil

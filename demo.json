@@ -1,1 +1,45 @@
-[{"name":"cmsname", "type":"body", "rule":"demo1"},{"name":"cms2", "type":"headers", "rule":"demo2"}]
+[
+  {
+    "name": "cmsname",
+    "rules":[
+      {
+      "version":   "component_v1.1",
+      "level":     3,
+      "path":      ["/"],
+      "body":      "(index|Index)",
+      "header":    "cmsname",
+      "icon_hash": "1231312"
+      },{
+        "version":   "v1.2",
+        "level":     2,
+        "path":      ["/"],
+        "body":      "(body|Body)"
+      },{
+        "level":     1,
+        "path":      ["/header"],
+        "header":     "(header|Header)"
+      }
+    ]
+  },{
+    "name": "cmsname1",
+    "rules":[
+      {
+      "version":   "component1_v1.1",
+      "level":     3,
+      "path":      ["/"],
+      "body":      "(index1|Index1)",
+      "header":    "cmsname1",
+      "icon_hash": "1231312"
+      },{
+        "version":   "v1.2",
+        "level":     2,
+        "path":      ["/"],
+        "body":      "(body1|Body1)"
+      },{
+        "level":     1,
+        "path":      ["/header1"],
+        "header":     "(header1|Header1)"
+      }
+    ]
+  }
+]
